@@ -7,7 +7,8 @@ import (
 	"net/http"
 
 	"github.com/lbe-io/crypto-sdk-go/client"
-	"github.com/lbe-io/crypto-sdk-go/request/entity"
+	"github.com/lbe-io/crypto-sdk-go/common/consts"
+	"github.com/lbe-io/crypto-sdk-go/common/entity"
 )
 
 // HandlerFunc 回调处理函数类型
@@ -16,19 +17,19 @@ type HandlerFunc func(ctx context.Context, data []byte) (any, error)
 // CallbackManager 回调管理器
 type CallbackManager struct {
 	client   *client.CryptoClient
-	handlers map[string]HandlerFunc
+	handlers map[consts.CallbackEventType]HandlerFunc
 }
 
 // NewCallbackManager 创建回调管理器
 func NewCallbackManager(client *client.CryptoClient) *CallbackManager {
 	return &CallbackManager{
 		client:   client,
-		handlers: make(map[string]HandlerFunc),
+		handlers: make(map[consts.CallbackEventType]HandlerFunc),
 	}
 }
 
 // Register 注册回调处理器
-func (m *CallbackManager) Register(eventType string, handler HandlerFunc) {
+func (m *CallbackManager) Register(eventType consts.CallbackEventType, handler HandlerFunc) {
 	m.handlers[eventType] = handler
 }
 
@@ -57,7 +58,7 @@ func (m *CallbackManager) HandleRequest(ctx context.Context, req *http.Request) 
 }
 
 // HandleRawData 处理原始数据（已验证签名的数据）
-func (m *CallbackManager) HandleRawData(ctx context.Context, eventType string, data []byte) (any, error) {
+func (m *CallbackManager) HandleRawData(ctx context.Context, eventType consts.CallbackEventType, data []byte) (any, error) {
 	handler, exists := m.handlers[eventType]
 	if !exists {
 		return nil, fmt.Errorf("未注册的事件类型: %s", eventType)

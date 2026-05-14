@@ -9,6 +9,7 @@ import (
 
 	"github.com/lbe-io/crypto-sdk-go/callback"
 	"github.com/lbe-io/crypto-sdk-go/client"
+	"github.com/lbe-io/crypto-sdk-go/common/consts"
 	"github.com/lbe-io/crypto-sdk-go/common/entity"
 )
 
@@ -30,13 +31,13 @@ func main() {
 	callbackManager := callback.NewCallbackManager(sdkClient)
 
 	// 3. 注册交易创建事件处理器
-	callbackManager.Register(entity.EventTypeTransactionCreated, handleTransactionCreated)
+	callbackManager.Register(consts.EventTypeTransactionCreated, handleTransactionCreated)
 
 	// 4. 注册钱包创建事件处理器
-	callbackManager.Register(entity.EventTypeWalletCreated, handleWalletCreated)
+	callbackManager.Register(consts.EventTypeWalletCreated, handleWalletCreated)
 
 	// 5. 注册测试事件处理器
-	callbackManager.Register(entity.EventTypeTest, handleTestEvent)
+	callbackManager.Register(consts.EventTypeTest, handleTestEvent)
 
 	// 6. 创建并启动HTTP服务器
 	httpHandler := callback.NewHTTPHandler(callbackManager)

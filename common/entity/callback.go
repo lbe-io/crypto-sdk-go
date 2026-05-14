@@ -3,18 +3,20 @@ package entity
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/lbe-io/crypto-sdk-go/common/consts"
 )
 
 // CallbackEvent 回调事件基础结构
 type CallbackEvent struct {
-	EventType string          `json:"event_type"`
-	Data      json.RawMessage `json:"data"`
+	EventType consts.CallbackEventType `json:"event_type"`
+	Data      json.RawMessage          `json:"data"`
 }
 
 // CallbackHandler 回调处理器接口
 type CallbackHandler interface {
 	Handle(ctx context.Context, data json.RawMessage) (any, error)
-	EventType() string
+	EventType() consts.CallbackEventType
 }
 
 // CallbackResponse 回调响应
@@ -23,16 +25,6 @@ type CallbackResponse struct {
 	Msg  string `json:"msg"`
 	Data any    `json:"data,omitempty"`
 }
-
-// 事件类型常量
-const (
-	EventTypeTransactionCreated = "transaction_created"
-	EventTypeTransactionUpdated = "transaction_updated"
-	EventTypeWalletCreated      = "wallet_created"
-	EventTypeWalletUpdated      = "wallet_updated"
-	EventTypeAddressGenerated   = "address_generated"
-	EventTypeTest               = "test"
-)
 
 // TransactionCreatedEvent 交易创建事件数据
 type TransactionCreatedEvent struct {

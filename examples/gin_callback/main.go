@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lbe-io/crypto-sdk-go/callback"
 	"github.com/lbe-io/crypto-sdk-go/client"
+	"github.com/lbe-io/crypto-sdk-go/common/consts"
 	"github.com/lbe-io/crypto-sdk-go/common/entity"
 )
 
@@ -31,13 +32,13 @@ func init() {
 	manager := callback.NewCallbackManager(sdkClient)
 
 	// 3. 注册交易创建事件处理器
-	manager.Register(entity.EventTypeTransactionCreated, handleTransactionCreated)
+	manager.Register(consts.EventTypeTransactionCreated, handleTransactionCreated)
 
 	// 4. 注册钱包创建事件处理器
-	manager.Register(entity.EventTypeWalletCreated, handleWalletCreated)
+	manager.Register(consts.EventTypeWalletCreated, handleWalletCreated)
 
 	// 5. 注册测试事件处理器
-	manager.Register(entity.EventTypeTest, handleTestEvent)
+	manager.Register(consts.EventTypeTest, handleTestEvent)
 
 	// 创建Gin处理对象
 	ginHandler := callback.NewGinHandler(manager)
