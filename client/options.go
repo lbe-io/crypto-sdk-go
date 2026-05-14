@@ -4,19 +4,22 @@ import (
 	"maps"
 	"time"
 
+	"github.com/lbe-io/crypto-sdk-go/sdk/logger"
 )
 
 type clientOptions struct {
-	timeout time.Duration
+	timeout    time.Duration
 	ignore_log bool
-	header  map[string]string
+	header     map[string]string
+	logger     logger.ILogger
 }
 
 func defaultClientOptions() *clientOptions {
 	return &clientOptions{
-		timeout: 30 * time.Second,
+		timeout:    30 * time.Second,
 		ignore_log: false,
-		header:  make(map[string]string),
+		header:     make(map[string]string),
+		logger:     &logger.DefLogger{},
 	}
 }
 
@@ -50,5 +53,11 @@ func WithHeaders(headers map[string]string) ClientOptions {
 func WithIgnoreLog() ClientOptions {
 	return func(o *clientOptions) {
 		o.ignore_log = true
+	}
+}
+
+func WithLogger(log logger.ILogger) ClientOptions {
+	return func(o *clientOptions) {
+		o.logger = log
 	}
 }

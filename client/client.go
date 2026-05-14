@@ -2,14 +2,14 @@ package client
 
 import (
 	"bytes"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"time"
+
+	"github.com/lbe-io/crypto-sdk-go/sdk/logger"
+	"github.com/lbe-io/crypto-sdk-go/sdk/signx"
 )
 
 // SDKConfig 用于存储SDK初始化参数
@@ -18,7 +18,6 @@ type SDKConfig struct {
 	MerchantID string
 	APIKey     string
 	APISecret  string
-	Timeout    time.Duration // 可选超时时间
 }
 
 // CryptoSDK 是SDK的主结构体
@@ -31,77 +30,86 @@ type CryptoClient struct {
 
 // NewCryptoSDK 初始化SDK
 // 传入 server_host, merchant_id, apikey, apisecret
-func NewClient(config SDKConfig, option ...time.Duration) (*CryptoClient, error) {
+func NewClient(config SDKConfig, options ...ClientOptions) (*CryptoClient, error) {
 	if config.ServerHost == "" || config.MerchantID == "" || config.APIKey == "" || config.APISecret == "" {
 		return nil, fmt.Errorf("所有参数均不能为空")
 	}
-	timeout := 10 * time.Second
-	if len(option) > 0 {
-		timeout = option[0]
+
+	ops := defaultClientOptions()
+	for _, v := range options {
+		v(ops)
 	}
-	config.Timeout = timeout
 
 	client := &http.Client{
-		Timeout: timeout,
+		Timeout: ops.timeout,
 		Transport: &http.Transport{
 			MaxIdleConns:        100,
 			MaxIdleConnsPerHost: 10,
 		},
 	}
-	return &CryptoClient{config: config, httpClient: client}, nil
-}
-
-// 签名生成
-func (sdk *CryptoClient) sign(data string) string {
-	mac := hmac.New(sha256.New, []byte(sdk.config.APISecret))
-	mac.Write([]byte(data))
-	return hex.EncodeToString(mac.Sum(nil))
-}
-
-// 生成Authorization header
-func (sdk *CryptoClient) buildAuthHeader(params map[string]interface{}) string {
-	b, _ := json.Marshal(params)
-	sign := sdk.sign(string(b))
-	return fmt.Sprintf("%s:%s", sdk.config.APIKey, sign)
-}
-
-// 验签
-func (sdk *CryptoClient) verifySign(data, signature string) bool {
-	return sdk.sign(data) == signature
+	return &CryptoClient{config: config, options: ops, httpClient: client}, nil
 }
 
 // 通用请求方法
-func (sdk *CryptoClient) doRequest(method, path string, reqBody interface{}, respBody interface{}) error {
+func (sdk *CryptoClient) doRequest(ctx context.Context, method, path string, reqBody interface{}, respBody interface{}) error {
 	url := fmt.Sprintf("%s%s", sdk.config.ServerHost, path)
-	var body io.Reader
-	var params map[string]interface{}
-	if reqBody != nil {
-		b, _ := json.Marshal(reqBody)
-		body = bytes.NewReader(b)
-		json.Unmarshal(b, &params)
-	} else {
-		params = map[string]interface{}{}
-	}
-	req, err := http.NewRequest(method, url, body)
+
+	reqBy, err := json.Marshal(reqBody)
 	if err != nil {
+		sdk.options.logger.Errorf(ctx, "doRequest Marshal err:%v", err)
+		return err
+	}
+
+	// 参数签名
+	sg := signx.NewSignV1(sdk.options.logger)
+	vd, err := sg.CreateSign(ctx, sdk.config.APISecret, path, sdk.config.APIKey, sdk.config.MerchantID, method, string(reqBy))
+	if err != nil {
+		sdk.options.logger.Errorf(ctx, "doRequest CreateSign err:%v", err)
+		return err
+	}
+
+	req, err := http.NewRequest(method, url, bytes.NewReader(reqBy))
+	if err != nil {
+		sdk.options.logger.Errorf(ctx, "doRequest NewRequest err:%v", err)
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", sdk.buildAuthHeader(params))
+	req.Header.Set("Authorization", vd.Authorization)
 	resp, err := sdk.httpClient.Do(req)
 	if err != nil {
+		sdk.options.logger.Errorf(ctx, "doRequest httpClient.Do err:%v", err)
 		return err
 	}
 	defer resp.Body.Close()
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
+		sdk.options.logger.Errorf(ctx, "doRequest io.ReadAll err:%v", err)
 		return err
 	}
 	// 响应验签
 	respSign := resp.Header.Get("Authorization")
-	if !sdk.verifySign(string(respBytes), respSign) {
-		return fmt.Errorf("响应验签失败")
+
+	// 打印响应值
+	sdk.options.logger.Infof(ctx, "doRequest resp body:%s auth:%s", string(respBytes), respSign)
+
+	if respSign == "" {
+		sdk.options.logger.Errorf(ctx, "doRequest Authorization is nil")
+		return fmt.Errorf("签名响应错误")
 	}
+	err = sg.VerifySign(ctx, sdk.config.APISecret, signx.VerifyData{
+		Authorization: respSign,
+		SignInfo: signx.SignInfo{
+			Method:       method,
+			CanonicalURL: path,
+			SignBody:     string(respBytes),
+		},
+	})
+
+	if err != nil {
+		sdk.options.logger.Errorf(ctx, "doRequest VerifySign err:%v", err)
+		return err
+	}
+
 	if respBody != nil {
 		return json.Unmarshal(respBytes, respBody)
 	}
@@ -109,21 +117,21 @@ func (sdk *CryptoClient) doRequest(method, path string, reqBody interface{}, res
 }
 
 // GET请求
-func (sdk *CryptoClient) Get(path string, req, resp interface{}) error {
-	return sdk.doRequest(http.MethodGet, path, req, resp)
+func (sdk *CryptoClient) Get(ctx context.Context, path string, req, resp interface{}) error {
+	return sdk.doRequest(ctx, http.MethodGet, path, req, resp)
 }
 
-func (sdk *CryptoClient) GetPage(path string, req, resp interface{}) error {
-	return sdk.doRequest(http.MethodGet, path, req, resp)
+func (sdk *CryptoClient) GetPage(ctx context.Context, path string, req, resp interface{}) error {
+	return sdk.doRequest(ctx, http.MethodGet, path, req, resp)
 }
 
 // POST请求
-func (sdk *CryptoClient) Post(path string, req, resp interface{}) error {
-	return sdk.doRequest(http.MethodPost, path, req, resp)
+func (sdk *CryptoClient) Post(ctx context.Context, path string, req, resp interface{}) error {
+	return sdk.doRequest(ctx, http.MethodPost, path, req, resp)
 }
 
-func (sdk *CryptoClient) PostPage(path string, req, resp interface{}) error {
-	return sdk.doRequest(http.MethodPost, path, req, resp)
+func (sdk *CryptoClient) PostPage(ctx context.Context, path string, req, resp interface{}) error {
+	return sdk.doRequest(ctx, http.MethodPost, path, req, resp)
 }
 
 // 实体定义示例
@@ -140,13 +148,37 @@ type ExampleResponse struct {
 
 // 回调处理
 func (sdk *CryptoClient) HandleCallback(r *http.Request) ([]byte, error) {
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
 	sign := r.Header.Get("Authorization")
-	if !sdk.verifySign(string(body), sign) {
-		return nil, fmt.Errorf("回调验签失败")
+
+	sdk.options.logger.Infof(r.Context(), "HandleCallback body:%s sign:%s", string(body), sign)
+
+	err = signx.NewSignV1(sdk.options.logger).VerifySign(r.Context(), sdk.config.APISecret, signx.VerifyData{
+		Authorization: sign,
+		SignInfo: signx.SignInfo{
+			Method:       "POST",
+			CanonicalURL: r.RequestURI,
+			SignBody:     string(body),
+		},
+	})
+	if err != nil {
+		sdk.options.logger.Errorf(r.Context(), "HandleCallback NewSignV1 err:%v", err)
+		return nil, err
 	}
+
 	return body, nil
+}
+
+// Options 获取客户端配置选项
+func (sdk *CryptoClient) Options() *clientOptions {
+	return sdk.options
+}
+
+// Logger 获取日志记录器
+func (sdk *CryptoClient) Logger() logger.ILogger {
+	return sdk.options.logger
 }
