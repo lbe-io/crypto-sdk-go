@@ -108,11 +108,12 @@ func (s *SignV1) VerifySign(ctx context.Context, appsecret string, verifyData Ve
 		SignInfo: verifyData.SignInfo,
 	}
 
-	_, sign, err := s.getSign(ctx, appsecret, signData)
+	auth, sign, err := s.getSign(ctx, appsecret, signData)
 	if err != nil {
 		s.logger.Errorf(ctx, "VerifySign getSign err: %v", err)
 		return err
 	}
+	s.logger.Infof(ctx, "VerifySign signData.localAuth:%s", auth)
 
 	if signData.Sign != sign {
 		s.logger.Errorf(ctx, "VerifySign signData.Sign: %s, infoResp.Sign: %s", signData.Sign, sign)

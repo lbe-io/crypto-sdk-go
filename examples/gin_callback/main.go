@@ -12,7 +12,7 @@ import (
 	"github.com/lbe-io/crypto-sdk-go/common/entity"
 )
 
-func init() {
+func main() {
 
 	// 1. 初始化SDK客户端
 	config := client.SDKConfig{
