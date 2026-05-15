@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -32,13 +31,13 @@ func init() {
 	manager := callback.NewCallbackManager(sdkClient, "")
 
 	// 3. 注册交易创建事件处理器
-	manager.Register(consts.EventTypeTransactionCreated, handleTransactionCreated)
+	callback.Register(manager, consts.EventTypeTransactionCreated, handleTransactionCreated)
 
 	// 4. 注册钱包创建事件处理器
-	manager.Register(consts.EventTypeWalletCreated, handleWalletCreated)
+	callback.Register(manager, consts.EventTypeWalletCreated, handleWalletCreated)
 
 	// 5. 注册测试事件处理器
-	manager.Register(consts.EventTypeTest, handleTestEvent)
+	callback.Register(manager, consts.EventTypeTest, handleTestEvent)
 
 	// 创建Gin处理对象
 	ginHandler := callback.NewGinHandler(manager)
@@ -52,67 +51,36 @@ func init() {
 }
 
 // handleTransactionCreated 处理交易创建事件
-func handleTransactionCreated(ctx context.Context, data []byte) (any, error) {
-	var eventData entity.TransactionCreatedEvent
-	if err := json.Unmarshal(data, &eventData); err != nil {
-		return nil, fmt.Errorf("解析交易数据失败: %v", err)
-	}
+func handleTransactionCreated(ctx context.Context, data entity.TransactionCreatedEvent) error {
 
 	// 在这里添加你的业务逻辑
 	// 例如：保存到数据库、发送通知、更新缓存等
 	fmt.Printf("收到交易创建事件:\n")
-	fmt.Printf("  交易ID: %s\n", eventData.TransactionID)
-	fmt.Printf("  金额: %s %s\n", eventData.Amount, eventData.Currency)
-	fmt.Printf("  状态: %s\n", eventData.Status)
+	fmt.Printf("  交易ID: %s\n", data.TransactionID)
+	fmt.Printf("  金额: %s %s\n", data.Amount, data.Currency)
+	fmt.Printf("  状态: %s\n", data.Status)
 
 	// 返回处理结果
-	return entity.CallbackResponse{
-		Code: 0,
-		Msg:  "交易处理成功",
-		Data: map[string]interface{}{
-			"transaction_id": eventData.TransactionID,
-			"processed_at":   "2024-01-01T12:00:00Z",
-		},
-	}, nil
+	return nil
 }
 
 // handleWalletCreated 处理钱包创建事件
-func handleWalletCreated(ctx context.Context, data []byte) (any, error) {
-	var eventData entity.WalletCreatedEvent
-	if err := json.Unmarshal(data, &eventData); err != nil {
-		return nil, fmt.Errorf("解析钱包数据失败: %v", err)
-	}
+func handleWalletCreated(ctx context.Context, data entity.WalletCreatedEvent) error {
 
 	fmt.Printf("收到钱包创建事件:\n")
-	fmt.Printf("  钱包ID: %s\n", eventData.WalletID)
-	fmt.Printf("  钱包名称: %s\n", eventData.WalletName)
-	fmt.Printf("  币种: %s\n", eventData.Currency)
+	fmt.Printf("  钱包ID: %s\n", data.WalletID)
+	fmt.Printf("  钱包名称: %s\n", data.WalletName)
+	fmt.Printf("  币种: %s\n", data.Currency)
 
 	// 返回处理结果
-	return entity.CallbackResponse{
-		Code: 0,
-		Msg:  "钱包创建成功",
-		Data: eventData,
-	}, nil
+	return nil
 }
 
 // handleTestEvent 处理测试事件
-func handleTestEvent(ctx context.Context, data []byte) (any, error) {
-	var eventData entity.TestEvent
-	if err := json.Unmarshal(data, &eventData); err != nil {
-		return nil, fmt.Errorf("解析测试数据失败: %v", err)
-	}
+func handleTestEvent(ctx context.Context, data entity.TestEvent) error {
 
-	fmt.Printf("收到测试事件: %s\n", eventData.Message)
+	fmt.Printf("收到测试事件: %s\n", data.Message)
 
 	// 返回处理结果
-	return entity.CallbackResponse{
-		Code: 0,
-		Msg:  "测试成功",
-		Data: map[string]interface{}{
-			"message": eventData.Message,
-			"time":    eventData.Time,
-			"status":  "processed",
-		},
-	}, nil
+	return nil
 }

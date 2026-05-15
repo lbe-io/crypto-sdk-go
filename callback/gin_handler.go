@@ -20,7 +20,7 @@ func (h *GinHandler) HandleFunc(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	// 处理回调请求
-	result, err := h.manager.HandleRequest(ctx, c.Request)
+	err := h.manager.HandleRequest(ctx, c.Request)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code": 400,
@@ -31,6 +31,5 @@ func (h *GinHandler) HandleFunc(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
 		"msg":  "success",
-		"data": result,
 	})
 }

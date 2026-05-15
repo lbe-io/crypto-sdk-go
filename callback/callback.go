@@ -5,20 +5,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/lbe-io/crypto-sdk-go/client"
 	"github.com/lbe-io/crypto-sdk-go/common/consts"
 	"github.com/lbe-io/crypto-sdk-go/common/entity"
 )
 
-// HandlerFunc 回调处理函数类型
-type HandlerFunc func(ctx context.Context, data []byte) (any, error)
+// HandlerFunc 泛型回调处理函数类型
+type HandlerFunc[T any] func(ctx context.Context, data T) error
+
+// handlerEntry 用于存储注册的回调及其类型信息
+type handlerEntry struct {
+	handler any
+	typeOf  reflect.Type
+}
 
 // CallbackManager 回调管理器
 type CallbackManager struct {
 	callbackUri string
 	client      *client.CryptoClient
-	handlers    map[consts.CallbackEventType]HandlerFunc
+	handlers    map[consts.CallbackEventType]handlerEntry
 }
 
 // NewCallbackManager 创建回调管理器
@@ -27,127 +34,73 @@ func NewCallbackManager(client *client.CryptoClient, callbackUri string) *Callba
 	return &CallbackManager{
 		callbackUri: callbackUri,
 		client:      client,
-		handlers:    make(map[consts.CallbackEventType]HandlerFunc),
+		handlers:    make(map[consts.CallbackEventType]handlerEntry),
 	}
 }
 
-// Register 注册回调处理器
-func (m *CallbackManager) Register(eventType consts.CallbackEventType, handler HandlerFunc) {
-	m.handlers[eventType] = handler
+// Register 注册类型安全的回调处理器（包级泛型函数）
+func Register[T any](m *CallbackManager, eventType consts.CallbackEventType, handler HandlerFunc[T]) {
+	m.handlers[eventType] = handlerEntry{
+		handler: handler,
+		typeOf:  reflect.TypeOf((*T)(nil)).Elem(),
+	}
 }
 
 // HandleRequest 处理HTTP请求
-func (m *CallbackManager) HandleRequest(ctx context.Context, req *http.Request) (any, error) {
-	// 验证签名并获取原始数据
+func (m *CallbackManager) HandleRequest(ctx context.Context, req *http.Request) error {
 	body, err := m.client.HandleCallback(req, m.callbackUri)
 	if err != nil {
-		return nil, fmt.Errorf("回调签名验证失败: %v", err)
+		return fmt.Errorf("回调签名验证失败: %v", err)
 	}
-
-	// 解析回调事件
 	var callbackEvent entity.CallbackEvent
 	if err := json.Unmarshal(body, &callbackEvent); err != nil {
-		return nil, fmt.Errorf("解析回调事件失败: %v", err)
+		return fmt.Errorf("解析回调事件失败: %v", err)
 	}
-
-	// 查找对应的处理器
-	handler, exists := m.handlers[callbackEvent.EventType]
+	handlerEntry, exists := m.handlers[callbackEvent.EventType]
 	if !exists {
-		return nil, fmt.Errorf("未注册的事件类型: %s", callbackEvent.EventType)
+		return fmt.Errorf("未注册的事件类型: %s", callbackEvent.EventType)
 	}
-
+	// 反序列化为注册时指定的类型
+	value := reflect.New(handlerEntry.typeOf).Interface()
+	if err := json.Unmarshal(callbackEvent.Data, value); err != nil {
+		return fmt.Errorf("事件数据反序列化失败: %v", err)
+	}
 	// 调用处理器
-	return handler(ctx, callbackEvent.Data)
-}
-
-// HandleRawData 处理原始数据（已验证签名的数据）
-func (m *CallbackManager) HandleRawData(ctx context.Context, eventType consts.CallbackEventType, data []byte) (any, error) {
-	handler, exists := m.handlers[eventType]
-	if !exists {
-		return nil, fmt.Errorf("未注册的事件类型: %s", eventType)
+	result := reflect.ValueOf(handlerEntry.handler).Call([]reflect.Value{
+		reflect.ValueOf(ctx),
+		reflect.ValueOf(reflect.Indirect(reflect.ValueOf(value)).Interface()),
+	})
+	if !result[0].IsNil() {
+		return result[0].Interface().(error)
 	}
-	return handler(ctx, data)
+	return nil
 }
 
 // DefaultHandlers 默认处理器
 var DefaultHandlers = struct {
-	// TransactionCreated 交易创建事件处理器
-	TransactionCreated HandlerFunc
-	// TransactionUpdated 交易更新事件处理器
-	TransactionUpdated HandlerFunc
-	// WalletCreated 钱包创建事件处理器
-	WalletCreated HandlerFunc
-	// WalletUpdated 钱包更新事件处理器
-	WalletUpdated HandlerFunc
-	// AddressGenerated 地址生成事件处理器
-	AddressGenerated HandlerFunc
-	// TestEvent 测试事件处理器
-	TestEvent HandlerFunc
+	TransactionCreated HandlerFunc[entity.TransactionCreatedEvent]
+	TransactionUpdated HandlerFunc[entity.TransactionUpdatedEvent]
+	WalletCreated      HandlerFunc[entity.WalletCreatedEvent]
+	WalletUpdated      HandlerFunc[entity.WalletUpdatedEvent]
+	AddressGenerated   HandlerFunc[entity.AddressGeneratedEvent]
+	TestEvent          HandlerFunc[entity.TestEvent]
 }{
-	TransactionCreated: func(ctx context.Context, data []byte) (any, error) {
-		var eventData entity.TransactionCreatedEvent
-		if err := json.Unmarshal(data, &eventData); err != nil {
-			return nil, fmt.Errorf("解析交易创建事件数据失败: %v", err)
-		}
-		return entity.CallbackResponse{
-			Code: 0,
-			Msg:  "交易创建事件处理成功",
-			Data: eventData,
-		}, nil
+	TransactionCreated: func(ctx context.Context, data entity.TransactionCreatedEvent) error {
+		return fmt.Errorf("交易创建事件处理失败: %v", data)
 	},
-	TransactionUpdated: func(ctx context.Context, data []byte) (any, error) {
-		var eventData entity.TransactionUpdatedEvent
-		if err := json.Unmarshal(data, &eventData); err != nil {
-			return nil, fmt.Errorf("解析交易更新事件数据失败: %v", err)
-		}
-		return entity.CallbackResponse{
-			Code: 0,
-			Msg:  "交易更新事件处理成功",
-			Data: eventData,
-		}, nil
+	TransactionUpdated: func(ctx context.Context, data entity.TransactionUpdatedEvent) error {
+		return fmt.Errorf("交易更新事件处理失败: %v", data)
 	},
-	WalletCreated: func(ctx context.Context, data []byte) (any, error) {
-		var eventData entity.WalletCreatedEvent
-		if err := json.Unmarshal(data, &eventData); err != nil {
-			return nil, fmt.Errorf("解析钱包创建事件数据失败: %v", err)
-		}
-		return entity.CallbackResponse{
-			Code: 0,
-			Msg:  "钱包创建事件处理成功",
-			Data: eventData,
-		}, nil
+	WalletCreated: func(ctx context.Context, data entity.WalletCreatedEvent) error {
+		return fmt.Errorf("钱包创建事件处理失败: %v", data)
 	},
-	WalletUpdated: func(ctx context.Context, data []byte) (any, error) {
-		var eventData entity.WalletUpdatedEvent
-		if err := json.Unmarshal(data, &eventData); err != nil {
-			return nil, fmt.Errorf("解析钱包更新事件数据失败: %v", err)
-		}
-		return entity.CallbackResponse{
-			Code: 0,
-			Msg:  "钱包更新事件处理成功",
-			Data: eventData,
-		}, nil
+	WalletUpdated: func(ctx context.Context, data entity.WalletUpdatedEvent) error {
+		return fmt.Errorf("钱包更新事件处理失败: %v", data)
 	},
-	AddressGenerated: func(ctx context.Context, data []byte) (any, error) {
-		var eventData entity.AddressGeneratedEvent
-		if err := json.Unmarshal(data, &eventData); err != nil {
-			return nil, fmt.Errorf("解析地址生成事件数据失败: %v", err)
-		}
-		return entity.CallbackResponse{
-			Code: 0,
-			Msg:  "地址生成事件处理成功",
-			Data: eventData,
-		}, nil
+	AddressGenerated: func(ctx context.Context, data entity.AddressGeneratedEvent) error {
+		return fmt.Errorf("地址生成事件处理失败: %v", data)
 	},
-	TestEvent: func(ctx context.Context, data []byte) (any, error) {
-		var eventData entity.TestEvent
-		if err := json.Unmarshal(data, &eventData); err != nil {
-			return nil, fmt.Errorf("解析测试事件数据失败: %v", err)
-		}
-		return entity.CallbackResponse{
-			Code: 0,
-			Msg:  "测试事件处理成功",
-			Data: eventData,
-		}, nil
+	TestEvent: func(ctx context.Context, data entity.TestEvent) error {
+		return fmt.Errorf("测试事件处理失败: %v", data)
 	},
 }

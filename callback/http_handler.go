@@ -22,14 +22,14 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// 处理回调请求
-	result, err := h.manager.HandleRequest(ctx, r)
+	err := h.manager.HandleRequest(ctx, r)
 	if err != nil {
 		h.writeError(w, err)
 		return
 	}
 
 	// 返回成功响应
-	h.writeSuccess(w, result)
+	h.writeSuccess(w, nil)
 }
 
 // writeError 写入错误响应
