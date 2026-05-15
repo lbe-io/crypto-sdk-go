@@ -28,7 +28,7 @@ func main() {
 	}
 
 	// 2. 创建回调管理器
-	callbackManager := callback.NewCallbackManager(sdkClient)
+	callbackManager := callback.NewCallbackManager(sdkClient, "")
 
 	// 3. 注册交易创建事件处理器
 	callbackManager.Register(consts.EventTypeTransactionCreated, handleTransactionCreated)

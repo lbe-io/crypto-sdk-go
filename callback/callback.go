@@ -16,15 +16,18 @@ type HandlerFunc func(ctx context.Context, data []byte) (any, error)
 
 // CallbackManager 回调管理器
 type CallbackManager struct {
-	client   *client.CryptoClient
-	handlers map[consts.CallbackEventType]HandlerFunc
+	callbackUri string
+	client      *client.CryptoClient
+	handlers    map[consts.CallbackEventType]HandlerFunc
 }
 
 // NewCallbackManager 创建回调管理器
-func NewCallbackManager(client *client.CryptoClient) *CallbackManager {
+// callbackUri 可选参数，指定回调的URI路径，默认为请求的URI路径。
+func NewCallbackManager(client *client.CryptoClient, callbackUri string) *CallbackManager {
 	return &CallbackManager{
-		client:   client,
-		handlers: make(map[consts.CallbackEventType]HandlerFunc),
+		callbackUri: callbackUri,
+		client:      client,
+		handlers:    make(map[consts.CallbackEventType]HandlerFunc),
 	}
 }
 
@@ -36,7 +39,7 @@ func (m *CallbackManager) Register(eventType consts.CallbackEventType, handler H
 // HandleRequest 处理HTTP请求
 func (m *CallbackManager) HandleRequest(ctx context.Context, req *http.Request) (any, error) {
 	// 验证签名并获取原始数据
-	body, err := m.client.HandleCallback(req)
+	body, err := m.client.HandleCallback(req, m.callbackUri)
 	if err != nil {
 		return nil, fmt.Errorf("回调签名验证失败: %v", err)
 	}

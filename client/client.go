@@ -147,7 +147,11 @@ type ExampleResponse struct {
 }
 
 // 回调处理
-func (sdk *CryptoClient) HandleCallback(r *http.Request) ([]byte, error) {
+func (sdk *CryptoClient) HandleCallback(r *http.Request, callbackUri string) ([]byte, error) {
+
+	if callbackUri == "" {
+		callbackUri = r.RequestURI
+	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -161,7 +165,7 @@ func (sdk *CryptoClient) HandleCallback(r *http.Request) ([]byte, error) {
 		Authorization: sign,
 		SignInfo: signx.SignInfo{
 			Method:       "POST",
-			CanonicalURL: r.RequestURI,
+			CanonicalURL: callbackUri,
 			SignBody:     string(body),
 		},
 	})
