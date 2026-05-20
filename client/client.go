@@ -62,7 +62,7 @@ func (sdk *CryptoClient) doRequest(ctx context.Context, method, path string, req
 
 	// 参数签名
 	sg := signx.NewSignV1(sdk.options.logger)
-	vd, err := sg.CreateSign(ctx, sdk.config.APISecret, path, sdk.config.APIKey, sdk.config.MerchantID, method, string(reqBy))
+	vd, err := sg.CreateSign(ctx, sdk.config.APISecret, url, sdk.config.APIKey, sdk.config.MerchantID, method, string(reqBy))
 	if err != nil {
 		sdk.options.logger.Errorf(ctx, "doRequest CreateSign err:%v", err)
 		return err

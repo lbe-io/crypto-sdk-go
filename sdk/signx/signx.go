@@ -69,10 +69,17 @@ type SignData struct {
 // 创建签名
 func (s *SignV1) CreateSign(ctx context.Context, appsecret, canonicalURL string, appid string, merchantId string, method string, signBody string) (*VerifyData, error) {
 
+	// 解析URL 去掉host
+	u, err := url.Parse(canonicalURL)
+	if err != nil {
+		s.logger.Errorf(ctx, "CreateSign url.Parse err: %v", err)
+		return nil, err
+	}
+
 	info := SignData{
 		SignInfo: SignInfo{
 			Method:       method,
-			CanonicalURL: canonicalURL,
+			CanonicalURL: u.RequestURI(),
 			SignBody:     signBody,
 		},
 	}
