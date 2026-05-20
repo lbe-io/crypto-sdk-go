@@ -100,7 +100,7 @@ func (sdk *CryptoClient) doRequest(ctx context.Context, method, path string, req
 		Authorization: respSign,
 		SignInfo: signx.SignInfo{
 			Method:       method,
-			CanonicalURL: path,
+			CanonicalURL: url,
 			SignBody:     string(respBytes),
 		},
 	})
