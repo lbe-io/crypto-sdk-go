@@ -47,6 +47,11 @@ func Register[T any](m *CallbackManager, eventType entity.EventType, handler Han
 
 // HandleRequest 处理HTTP请求
 func (m *CallbackManager) HandleRequest(ctx context.Context, req *http.Request) error {
+
+	m.client.Logger().Infof(ctx, "HandleCallback Header trace_id:%s job_id:%s", req.Header.Get("trace-id"), req.Header.Get("job-id"))
+
+	ctx = context.WithValue(ctx, m.client.TraceIdField(), req.Header.Get("trace-id"))
+
 	body, err := m.client.HandleCallback(req, m.callbackUri)
 	if err != nil {
 		m.client.Logger().Errorf(ctx, "CallbackManager HandleRequest err:%v", err)
@@ -68,6 +73,7 @@ func (m *CallbackManager) HandleRequest(ctx context.Context, req *http.Request) 
 		m.client.Logger().Errorf(ctx, "CallbackManager typeOf err:%v", err)
 		return fmt.Errorf("事件数据反序列化失败: %v", err)
 	}
+
 	// 调用处理器
 	result := reflect.ValueOf(handlerEntry.handler).Call([]reflect.Value{
 		reflect.ValueOf(ctx),

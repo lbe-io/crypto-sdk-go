@@ -27,7 +27,7 @@ func main() {
 	}
 
 	// 2. 创建回调处理管理器
-	manager := callback.NewCallbackManager(sdkClient, "")
+	manager := callback.NewCallbackManager(sdkClient, "http://example.com/xxxpath/callback")
 
 	// 3. 注册转入成功事件处理器
 	callback.Register(manager, entity.EventIncomingConfirmed, handleIncomingConfirmed)
@@ -55,6 +55,8 @@ func main() {
 // handleIncomingConfirmed 处理转入成功事件
 func handleIncomingConfirmed(ctx context.Context, data entity.Event) error {
 
+	fmt.Println("trace_id:", ctx.Value("trace_id"))
+
 	// 在这里添加你的业务逻辑
 	// 例如：保存到数据库、发送通知、更新缓存等
 	fmt.Printf("收到转入成功事件: %v \n", data.Json())
@@ -69,6 +71,8 @@ func handleIncomingConfirmed(ctx context.Context, data entity.Event) error {
 // handleOutgoingConfirmed 处理转出成功事件
 func handleOutgoingConfirmed(ctx context.Context, data entity.Event) error {
 
+	fmt.Println("trace_id:", ctx.Value("trace_id"))
+
 	fmt.Printf("收到转出成功事件: %v \n", data.Json())
 	fmt.Printf("  钱包ID: %s\n", data.WalletID)
 	fmt.Printf("  交易ID: %s\n", data.Item.TransactionHash)
@@ -80,6 +84,8 @@ func handleOutgoingConfirmed(ctx context.Context, data entity.Event) error {
 // handleOutgoingFailed 处理转出失败事件
 func handleOutgoingFailed(ctx context.Context, data entity.Event) error {
 
+	fmt.Println("trace_id:", ctx.Value("trace_id"))
+
 	fmt.Printf("收到转出失败事件: %v \n", data.Json())
 	fmt.Printf("  钱包ID: %s\n", data.WalletID)
 	fmt.Printf("  交易ID: %s\n", data.Item.TransactionHash)
@@ -90,6 +96,8 @@ func handleOutgoingFailed(ctx context.Context, data entity.Event) error {
 
 // handleKeepaliveEvent 处理keepalive事件
 func handleKeepaliveEvent(ctx context.Context, data entity.KeepaliveEvent) error {
+
+	fmt.Println("trace_id:", ctx.Value("trace_id"))
 
 	fmt.Printf("收到keepalive事件: %s\n", data.Message)
 

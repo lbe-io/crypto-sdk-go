@@ -149,8 +149,6 @@ type ExampleResponse struct {
 // 回调处理
 func (sdk *CryptoClient) HandleCallback(r *http.Request, callbackUri string) ([]byte, error) {
 
-	sdk.options.logger.Infof(r.Context(), "HandleCallback Header trace_id:%s job_id:%s", r.Header.Get("trace-id"), r.Header.Get("job-id"))
-
 	if callbackUri == "" {
 		callbackUri = r.RequestURI
 	}
@@ -184,8 +182,8 @@ func (sdk *CryptoClient) HandleCallback(r *http.Request, callbackUri string) ([]
 }
 
 // Options 获取客户端配置选项
-func (sdk *CryptoClient) Options() *clientOptions {
-	return sdk.options
+func (sdk *CryptoClient) TraceIdField() string {
+	return sdk.options.traceIdField
 }
 
 // Logger 获取日志记录器
