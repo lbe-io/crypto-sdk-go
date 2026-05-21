@@ -49,19 +49,23 @@ func Register[T any](m *CallbackManager, eventType entity.EventType, handler Han
 func (m *CallbackManager) HandleRequest(ctx context.Context, req *http.Request) error {
 	body, err := m.client.HandleCallback(req, m.callbackUri)
 	if err != nil {
+		m.client.Logger().Errorf(ctx, "CallbackManager HandleRequest err:%v", err)
 		return fmt.Errorf("回调签名验证失败: %v", err)
 	}
 	var callbackEvent entity.CallbackEvent
 	if err := json.Unmarshal(body, &callbackEvent); err != nil {
+		m.client.Logger().Errorf(ctx, "CallbackManager CallbackEvent err:%v", err)
 		return fmt.Errorf("解析回调事件失败: %v", err)
 	}
 	handlerEntry, exists := m.handlers[callbackEvent.Event]
 	if !exists {
+		m.client.Logger().Errorf(ctx, "CallbackManager Event err:%v", callbackEvent.Event)
 		return fmt.Errorf("未注册的事件类型: %s", callbackEvent.Event)
 	}
 	// 反序列化为注册时指定的类型
 	value := reflect.New(handlerEntry.typeOf).Interface()
 	if err := json.Unmarshal(body, value); err != nil {
+		m.client.Logger().Errorf(ctx, "CallbackManager typeOf err:%v", err)
 		return fmt.Errorf("事件数据反序列化失败: %v", err)
 	}
 	// 调用处理器

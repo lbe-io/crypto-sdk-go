@@ -149,17 +149,23 @@ type ExampleResponse struct {
 // 回调处理
 func (sdk *CryptoClient) HandleCallback(r *http.Request, callbackUri string) ([]byte, error) {
 
+	sdk.options.logger.Infof(r.Context(), "HandleCallback Header trace_id:%s job_id:%s", r.Header.Get("trace-id"), r.Header.Get("job-id"))
+
 	if callbackUri == "" {
 		callbackUri = r.RequestURI
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
+		sdk.options.logger.Errorf(r.Context(), "HandleCallback io.ReadAll err:%v", err)
 		return nil, err
 	}
+
+	sdk.options.logger.Infof(r.Context(), "HandleCallback body:%s", string(body))
+
 	sign := r.Header.Get("Authorization")
 
-	sdk.options.logger.Infof(r.Context(), "HandleCallback body:%s sign:%s", string(body), sign)
+	sdk.options.logger.Infof(r.Context(), "HandleCallback sign:%s", sign)
 
 	err = signx.NewSignV1(sdk.options.logger).VerifySign(r.Context(), sdk.config.APISecret, signx.VerifyData{
 		Authorization: sign,
@@ -170,7 +176,7 @@ func (sdk *CryptoClient) HandleCallback(r *http.Request, callbackUri string) ([]
 		},
 	})
 	if err != nil {
-		sdk.options.logger.Errorf(r.Context(), "HandleCallback NewSignV1 err:%v", err)
+		sdk.options.logger.Errorf(r.Context(), "HandleCallback VerifySign err:%v", err)
 		return nil, err
 	}
 
