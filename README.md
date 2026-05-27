@@ -187,8 +187,6 @@ SDK 也提供通用请求方法：
 
 - `CryptoClient.Get(ctx, path, req, resp)`
 - `CryptoClient.Post(ctx, path, req, resp)`
-- `CryptoClient.GetPage(ctx, path, req, resp)`
-- `CryptoClient.PostPage(ctx, path, req, resp)`
 
 ### 4.2 接入回调（net/http）
 
@@ -282,21 +280,14 @@ func main() {
 
 可注册事件：
 
-- `transaction_created`
-- `transaction_updated`
-- `wallet_created`
-- `wallet_updated`
-- `address_generated`
-- `test`
+- `INCOMING_CONFIRMED`
+- `OUTGOING_CONFIRMED`
+- `OUTGOING_FAILED`
+- `KEEPALIVE`
 
-对应常量位于 `common/consts/callback_event.go`：
+对应常量位于 `common/consts/callback.go`和 `common/consts/event.go`：
 
-- `consts.EventTypeTransactionCreated`
-- `consts.EventTypeTransactionUpdated`
-- `consts.EventTypeWalletCreated`
-- `consts.EventTypeWalletUpdated`
-- `consts.EventTypeAddressGenerated`
-- `consts.EventTypeTest`
+- `consts.Event`
 
 ---
 
