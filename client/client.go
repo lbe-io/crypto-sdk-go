@@ -159,7 +159,7 @@ func (sdk *CryptoClient) HandleCallback(r *http.Request, callbackUri string) ([]
 		return nil, err
 	}
 
-	sdk.options.logger.Infof(r.Context(), "HandleCallback body:%s", string(body))
+	sdk.options.logger.Infof(r.Context(), "HandleCallback callbackUri:%s body:%s", callbackUri, string(body))
 
 	sign := r.Header.Get("Authorization")
 
