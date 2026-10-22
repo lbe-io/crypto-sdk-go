@@ -1,4 +1,4 @@
-﻿# crypto-sdk-go
+# crypto-sdk-go
 
 Go 语言版加密业务 SDK，提供：
 
@@ -282,21 +282,19 @@ func main() {
 
 可注册事件：
 
-- `transaction_created`
-- `transaction_updated`
-- `wallet_created`
-- `wallet_updated`
-- `address_generated`
-- `test`
+- `INCOMING_CONFIRMED`：主链币/代币转入成功
+- `OUTGOING_CONFIRMED`：主链币/代币转出成功
+- `OUTGOING_FAILED`：主链币/代币转出失败
+- `KEEPALIVE`：回调连通性自检
 
-对应常量位于 `common/consts/callback_event.go`：
+对应常量位于 `common/entity/event.go`：
 
-- `consts.EventTypeTransactionCreated`
-- `consts.EventTypeTransactionUpdated`
-- `consts.EventTypeWalletCreated`
-- `consts.EventTypeWalletUpdated`
-- `consts.EventTypeAddressGenerated`
-- `consts.EventTypeTest`
+- `entity.EventIncomingConfirmed`
+- `entity.EventOutgoingConfirmed`
+- `entity.EventOutgoingFailed`
+- `entity.EventKeepalive`
+
+主链币/代币通过 `item.trans_type` 区分：主链币为 `native`，代币为对应代币标准（当前 Ethereum=`erc20`、Tron=`trc20`）。
 
 ---
 
